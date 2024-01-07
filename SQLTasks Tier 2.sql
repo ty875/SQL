@@ -140,8 +140,6 @@ WHERE starttime LIKE '2012-09-14%'
     )AS sub
 ORDER BY cost DESC;
 
-
-
 /* PART 2: SQLite
 
 Export the country club data from PHPMyAdmin, and connect to a local SQLite instance from Jupyter notebook 
@@ -151,12 +149,55 @@ QUESTIONS:
 /* Q10: Produce a list of facilities with a total revenue less than 1000.
 The output of facility name and total revenue, sorted by revenue. Remember
 that there's a different cost for guests and members! */
+SELECT *
+FROM (
+    SELECT sub.facility, SUM(sub.cost) as revenue
+    FROM (
+        SELECT Facilities.name as facility, 
+               CASE WHEN Bookings.memid = 0
+                    THEN Facilities.guestcost * Bookings.slots
+                    ELSE Facilities.membercost * Bookings.slots
+               END AS cost 
+        FROM Bookings
+        INNER JOIN Facilities ON Bookings.facid = Facilities.facid
+        INNER JOIN Members ON Bookings.memid = Members.memid 
+    ) AS sub
+    GROUP BY sub.facility
+) AS total
+WHERE total.revenue < 1000;
+ORDER BY total.revenue
 
 /* Q11: Produce a report of members and who recommended them in alphabetic surname,firstname order */
-
+SELECT
+    Members.firstname,
+    Members.surname,
+    Members.recommendedby,
+    CONCAT(r.surname, r.firstname) AS recommender
+FROM Members
+LEFT JOIN Members r 
+ON Members.recommendedby = r.memid
+WHERE Members.recommendedby != ''
+ORDER BY recommender;
 
 /* Q12: Find the facilities with their usage by member, but not guests */
-
+SELECT sub.facid, COUNT(sub.memid) as member_usage, Facilities.name
+FROM(
+    SELECT facid, memid
+    FROM Bookings
+    WHERE memid != 0 
+) AS sub
+LEFT JOIN Facilities 
+ON sub.facid = Facilities.facid
+GROUP BY sub.facid;
 
 /* Q13: Find the facilities usage by month, but not guests */
 
+SELECT
+    Facilities.name,
+    MONTH(Bookings.starttime) AS month,
+    COUNT(*) AS memeber_usage
+FROM Bookings
+INNER JOIN Facilities 
+ON Bookings.facid = Facilities.facid
+WHERE Bookings.memid != 0
+GROUP BY month
